@@ -4,7 +4,7 @@ from cplate import spec
 
 HEADER_COMMENT = """
 /**
- * @file {}
+ * @file    {}
  * @author  Your Name Here
  * @brief   Description of file here
  */
@@ -18,18 +18,62 @@ def _default_returnval(func_spec):
         raise ValueError(f"Invalid function return type '{func_spec.return_type}'")
 
 
-def _c_file_contents(filename, func_specs):
-    ret = HEADER_COMMENT.format(filename).lstrip() + "\n\n\n"
+def _c_file_contents(filename, func_specs, h_filename=None):
+    ret = HEADER_COMMENT.format(filename).lstrip() + "\n\n"
 
     impls = []
 
     for func_spec in func_specs:
-        impl = func_spec.signature() + "\n{\n"
+        impl = ""
+        if h_filename:
+            impl += f"/**\n * @see #{h_filename}\n */\n"
+
+        impl += func_spec.signature() + "\n{\n"
         if func_spec.return_type != 'void':
             retval = spec.DEFAULT_VALS[func_spec.return_type]
             impl += f"    return {retval};\n"
 
         impl += "}\n"
+        impls.append(impl)
+
+    ret += '\n\n'.join(impls)
+    return ret
+
+
+def _doxygen_docs(func_spec):
+    ret = "/**\n * Function description\n"
+
+    longest_argname_len = 0
+
+    if func_spec.args[0].arg_type != "void":
+        ret += " *\n"
+        argname_lens = []
+
+        for arg_spec in func_spec.args:
+            length = len(arg_spec.arg_name_alpha)
+            argname_lens.append((arg_spec, length))
+            if length > longest_argname_len:
+                longest_argname_len = length
+
+        for arg_spec, length in argname_lens:
+            spaces = " " * ((longest_argname_len - length) + 2)
+            ret += f" * @param {arg_spec.arg_name.lstrip('*')}" + spaces + "Parameter description\n"
+
+    if func_spec.return_type != "void":
+        ret += " *\n"
+        ret += " * @return  Return description\n"
+
+    ret += " */"
+
+    return ret
+
+def _h_file_contents(filename, func_specs):
+    ret = HEADER_COMMENT.format(filename).lstrip() + "\n\n"
+
+    impls = []
+
+    for func_spec in func_specs:
+        impl = _doxygen_docs(func_spec) + "\n" + func_spec.signature() + ";\n\n"
         impls.append(impl)
 
     ret += '\n'.join(impls)
@@ -42,7 +86,7 @@ def generate_c_module(c_filename, h_filename, spec_lines=[''], root_dir='.'):
     if c_filename:
         c_filepath = os.path.join(root_dir, c_filename)
         with open(c_filepath, 'w') as fh:
-            fh.write(_c_file_contents(c_filename, func_specs))
+            fh.write(_c_file_contents(c_filename, func_specs, h_filename))
 
     if h_filename:
         h_filepath = os.path.join(root_dir, h_filename)
@@ -52,8 +96,10 @@ def generate_c_module(c_filename, h_filename, spec_lines=[''], root_dir='.'):
 
 if __name__ == "__main__":
     spec_lines = [
-        "uint32_t my_cool_func  ( bool **flag, unsigned short int* * *data  )",
+        "long double *my_cool_func  ( bool **flagsybagsy, unsigned short int* * *data  )",
         "bool my_cool_func2  (void)",
+        "void my_cool_func3  (void)",
+        "void *my_cool_func4(bool huh)",
     ]
 
-    generate_c_module('testfile.c', None, spec_lines)
+    generate_c_module('testfile.c', 'testfile.h', spec_lines)

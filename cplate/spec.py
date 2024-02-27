@@ -58,6 +58,7 @@ def _contains_non_asterisks(s: str):
 class FunctionArgSpec:
     arg_type: str
     arg_name: str
+    arg_name_alpha: str
     is_pointer: bool
 
     @classmethod
@@ -68,7 +69,7 @@ class FunctionArgSpec:
         arg_name = None
 
         if (len(arg_fields) == 1) and (arg_fields[0] == 'void'):
-            return FunctionArgSpec(arg_type='void', arg_name=None, is_pointer=False)
+            return FunctionArgSpec(arg_type='void', arg_name=None, arg_name_alpha=None, is_pointer=False)
 
         if len(arg_fields) < 2:
             raise ValueError(f"Invalid function argument '{arglist_field}'")
@@ -97,7 +98,8 @@ class FunctionArgSpec:
 
         isptr = '*' in arg_name or asterisks
 
-        return FunctionArgSpec(arg_type=arg_type, arg_name=arg_name, is_pointer=isptr)
+        return FunctionArgSpec(arg_type=arg_type, arg_name=arg_name,
+                               arg_name_alpha=arg_name.strip('*'), is_pointer=isptr)
 
 
 @dataclass
@@ -105,6 +107,22 @@ class FunctionSpec:
     return_type: str
     func_name: str
     args: List[FunctionArgSpec]
+
+    @classmethod
+    def from_string(cls, spec: str):
+        stripped = spec.strip()
+        if not stripped.endswith(')'):
+            raise ValueError(f"Invalid spec (unterminated argument list): {spec}")
+
+        stripped.rstrip(')')
+
+        arglist_fields = stripped.split('(', maxsplit=1)
+        if len(arglist_fields) != 2:
+            raise ValueError(f"Invalid spec (unrecognized argument list): {spec}")
+
+        arg_specs = []
+        for arg_spec in arglist_fields[1].split(','):
+            arg_specs.append(FunctionArgSpec.from_string(arg_spec))
 
     @classmethod
     def from_string(cls, spec: str):
