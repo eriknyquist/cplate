@@ -1,19 +1,21 @@
 import io
 import os
 import configparser
-from dataclasses import dataclass
-
+from dataclasses import dataclass, field
+from typing import Dict
 
 DEFAULT_CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".cplate_config.ini")
 
 
 @dataclass
 class CplateConfig:
-    header_comment: str = ''
+    header_comment_file: str = ''
     author: str = ''
     doxygen_comments: bool = True
+    include_guards: bool = True
     blank_line_count: int = 2
     brace_style: str = "allman"
+    custom_return_values: dict = field(default_factory=dict)
 
     @classmethod
     def from_string(cls, string):
@@ -22,8 +24,8 @@ class CplateConfig:
         ret = CplateConfig()
 
         if 'comments' in config:
-            if 'header_comment' in config['comments']:
-                ret.header_comment = config['comments']['header_comment'].strip()
+            if 'header_comment_file' in config['comments']:
+                ret.header_comment_file = config['comments']['header_comment_file'].strip()
 
             if 'author' in config['comments']:
                 ret.author = config['comments']['author']
@@ -45,6 +47,13 @@ class CplateConfig:
             if 'brace_style' in config['code']:
                 ret.brace_style = config['code']['brace_style']
 
+            if 'include_guards' in config['code']:
+                ret.include_guards = config['code'].getboolean('include_guards')
+
+        if 'custom_return_values' in config:
+            for key in config['custom_return_values']:
+                ret.custom_return_values[key] = config['custom_return_values'][key]
+
         return ret
 
     @classmethod
@@ -56,7 +65,7 @@ class CplateConfig:
         config = configparser.ConfigParser()
 
         config['comments'] = {}
-        config['comments']['header_comment'] = "\n" + str(self.header_comment)
+        config['comments']['header_comment_file'] = str(self.header_comment_file)
         config['comments']['author'] = str(self.author)
         config['comments']['doxygen_comments'] = str(self.doxygen_comments).lower()
 
@@ -65,6 +74,11 @@ class CplateConfig:
 
         config['code'] = {}
         config['code']['brace_style'] = str(self.brace_style)
+        config['code']['include_guards'] = str(self.include_guards).lower()
+
+        config['custom_return_values'] = {}
+        for key in self.custom_return_values:
+            config['custom_return_values'][key] = self.custom_return_values[key]
 
         str_fp = io.StringIO()
         config.write(str_fp)
