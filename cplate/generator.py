@@ -30,7 +30,11 @@ def _c_file_contents(filename, func_specs, h_filename=None):
 
         impl += func_spec.signature() + "\n{\n"
         if func_spec.return_type != 'void':
-            retval = spec.DEFAULT_VALS[func_spec.return_type]
+            if func_spec.returns_pointer:
+                retval = "NULL"
+            else:
+                retval = spec.DEFAULT_VALS[func_spec.return_type]
+
             impl += f"    return {retval};\n"
 
         impl += "}\n"
@@ -70,6 +74,10 @@ def _doxygen_docs(func_spec):
 def _h_file_contents(filename, func_specs):
     ret = HEADER_COMMENT.format(filename).lstrip() + "\n\n"
 
+    guard_name = filename.replace('.', '_').upper()
+    ret += f'#ifndef {guard_name}\n'
+    ret += f'#define {guard_name}\n\n\n'
+
     impls = []
 
     for func_spec in func_specs:
@@ -77,6 +85,7 @@ def _h_file_contents(filename, func_specs):
         impls.append(impl)
 
     ret += '\n'.join(impls)
+    ret += f'\n#endif // {guard_name}'
     return ret
 
 
@@ -99,7 +108,7 @@ if __name__ == "__main__":
         "long double *my_cool_func  ( bool **flagsybagsy, unsigned short int* * *data  )",
         "bool my_cool_func2  (void)",
         "void my_cool_func3  (void)",
-        "void *my_cool_func4(bool huh)",
+        "unsigned long * **my_cool_func4(bool huh)",
     ]
 
     generate_c_module('testfile.c', 'testfile.h', spec_lines)

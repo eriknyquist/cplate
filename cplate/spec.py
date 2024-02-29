@@ -105,6 +105,7 @@ class FunctionArgSpec:
 @dataclass
 class FunctionSpec:
     return_type: str
+    returns_pointer: bool
     func_name: str
     args: List[FunctionArgSpec]
 
@@ -114,7 +115,8 @@ class FunctionSpec:
         if not stripped.endswith(')'):
             raise ValueError(f"Invalid spec (unterminated argument list): {spec}")
 
-        stripped.rstrip(')')
+        print(spec)
+        stripped = stripped.rstrip(')')
 
         arglist_fields = stripped.split('(', maxsplit=1)
         if len(arglist_fields) != 2:
@@ -122,35 +124,37 @@ class FunctionSpec:
 
         arg_specs = []
         for arg_spec in arglist_fields[1].split(','):
+            print(arg_spec)
             arg_specs.append(FunctionArgSpec.from_string(arg_spec))
+            print(arg_specs[-1])
 
-    @classmethod
-    def from_string(cls, spec: str):
-        ret_fields = spec.split(maxsplit=1)
-        if len(ret_fields) != 2:
-            raise ValueError("Invalid spec (missing return type)")
+        before_params = arglist_fields[0].strip()
+        funcname_start_i = None
 
-        ret_type = ret_fields[0].strip()
+        for c in reversed(range(len(before_params))):
+            char = before_params[c]
+            if (not char.isidentifier()) and (not char.isdigit()):
+                break
 
-        fname_fields = ret_fields[1].split('(', maxsplit=1)
+            funcname_start_i = c
 
-        if len(fname_fields) != 2:
-            raise ValueError("Invalid spec (missing argument list)")
+        if funcname_start_i is None:
+            raise ValueError(f"Invalid spec (bad function name '{before_params}')")
 
-        fname = fname_fields[0].strip()
+        func_name = before_params[funcname_start_i:]
+        if not func_name.isidentifier():
+            raise ValueError(f"Invalid spec (invalid function name '{func_name}')")
 
-        arglist_stripped = fname_fields[1].strip()
+        ret_type = before_params[:funcname_start_i].strip()
+        ret_fields = ret_type.split('*')
+        star_count = 0 if len(ret_fields) <= 1 else len(ret_fields) - 1
+        ret_is_pointer = star_count > 0
 
-        if not arglist_stripped.endswith(')'):
-            raise ValueError("Invalid spec (unterminated argument list)")
+        cleaned_ret_type = ret_fields[0].rstrip()
+        if star_count > 0:
+            cleaned_ret_type += ' ' + ('*' * star_count)
 
-        arglist_fields = [x.strip() for x in arglist_stripped.rstrip(')').split(',')]
-
-        arg_specs = []
-        for arglist_field in arglist_fields:
-            arg_specs.append(FunctionArgSpec.from_string(arglist_field))
-
-        return FunctionSpec(return_type=ret_type, func_name=fname, args=arg_specs)
+        return FunctionSpec(cleaned_ret_type, ret_is_pointer, func_name, arg_specs)
 
     def signature(self):
         if (len(self.args) == 1) and (self.args[0].arg_type == 'void'):
@@ -158,7 +162,8 @@ class FunctionSpec:
         else:
             arglist = ", ".join([f"{a.arg_type} {a.arg_name}" for a in self.args])
 
-        return f"{self.return_type} {self.func_name}({arglist})"
+        space = "" if self.returns_pointer else " "
+        return f"{self.return_type}{space}{self.func_name}({arglist})"
 
 
 if __name__ == "__main__":
