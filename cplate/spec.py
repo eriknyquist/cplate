@@ -111,11 +111,10 @@ class FunctionSpec:
 
     @classmethod
     def from_string(cls, spec: str):
-        stripped = spec.strip()
+        stripped = spec.strip().rstrip(';')
         if not stripped.endswith(')'):
             raise ValueError(f"Invalid spec (unterminated argument list): {spec}")
 
-        print(spec)
         stripped = stripped.rstrip(')')
 
         arglist_fields = stripped.split('(', maxsplit=1)
@@ -124,9 +123,7 @@ class FunctionSpec:
 
         arg_specs = []
         for arg_spec in arglist_fields[1].split(','):
-            print(arg_spec)
             arg_specs.append(FunctionArgSpec.from_string(arg_spec))
-            print(arg_specs[-1])
 
         before_params = arglist_fields[0].strip()
         funcname_start_i = None

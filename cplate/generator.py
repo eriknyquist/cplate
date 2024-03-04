@@ -33,7 +33,8 @@ def _c_file_contents(filename, func_specs, config, h_filename=None):
         if h_filename:
             impl += f"/**\n * @see #{h_filename}\n */\n"
 
-        impl += func_spec.signature() + "\n{\n"
+        impl += func_spec.signature()
+        impl += "\n{\n" if config.brace_style == "allman" else " {\n"
         if func_spec.return_type != 'void':
             if func_spec.returns_pointer:
                 retval = "NULL"
@@ -45,7 +46,7 @@ def _c_file_contents(filename, func_specs, config, h_filename=None):
         impl += "}\n"
         impls.append(impl)
 
-    ret += '\n\n'.join(impls)
+    ret += ('\n' * config.blank_line_count).join(impls)
     return ret
 
 
@@ -84,18 +85,22 @@ def _h_file_contents(filename, func_specs, config):
 
     ret += HEADER_COMMENT.format(filename).lstrip() + "\n\n"
 
-    guard_name = filename.replace('.', '_').upper()
-    ret += f'#ifndef {guard_name}\n'
-    ret += f'#define {guard_name}\n\n\n'
+    if config.include_guards:
+        guard_name = filename.replace('.', '_').upper()
+        ret += f'#ifndef {guard_name}\n'
+        ret += f'#define {guard_name}\n\n\n'
 
     impls = []
 
     for func_spec in func_specs:
-        impl = _doxygen_docs(func_spec, config) + "\n" + func_spec.signature() + ";\n\n"
+        impl = _doxygen_docs(func_spec, config) + "\n" + func_spec.signature() + ";\n"
         impls.append(impl)
 
-    ret += '\n'.join(impls)
-    ret += f'\n#endif // {guard_name}'
+    ret += ('\n' * config.blank_line_count).join(impls).strip()
+
+    if config.include_guards:
+        ret += f'\n\n#endif // {guard_name}'
+
     return ret
 
 
