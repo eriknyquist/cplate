@@ -15,7 +15,7 @@ def _default_returnval(func_spec, config):
     try:
         return spec.DEFAULT_VALS[func_spec.return_type]
     except KeyError:
-        raise ValueError(f"Invalid function return type '{func_spec.return_type}'")
+        return config.custom_return_values.get(func_spec.return_type, None)
 
 
 def _c_file_contents(filename, func_specs, config, h_filename=None):
@@ -39,7 +39,7 @@ def _c_file_contents(filename, func_specs, config, h_filename=None):
             if func_spec.returns_pointer:
                 retval = "NULL"
             else:
-                retval = spec.DEFAULT_VALS[func_spec.return_type]
+                retval = _default_returnval(func_spec, config)
 
             impl += f"    return {retval};\n"
 
